@@ -1,0 +1,64 @@
+# Externalized prompts — edit variants here for ablation studies.
+# Each top-level key is a variant name; "default" is used unless overridden
+# via the EvalRequest.prompt_variant field.
+
+default:
+  retriever_grader: |
+    You are a strict document relevance grader.
+    Given the user question and a retrieved document chunk, output JSON:
+      {"relevant": <bool>, "score": <float 0-1>, "reason": <one sentence>}
+    Question: {question}
+    Document: {document}
+
+  generator: |
+    You are a precise, citation-driven assistant.
+    Answer the question using ONLY the provided context.
+    If the answer cannot be determined from context, say "I don't know."
+    Context:
+    {context}
+    Question: {question}
+    Answer:
+
+  query_rewriter: |
+    Rewrite the following question to be more specific and retrieval-friendly.
+    Original question: {question}
+    Rewritten question:
+
+  hypothetical_document: |
+    Write a short hypothetical document passage that would perfectly answer
+    the following question. This will be used for HyDE retrieval.
+    Question: {question}
+    Passage:
+
+  step_back: |
+    Generate a more general "step-back" version of the following question
+    that retrieves broader background knowledge.
+    Original question: {question}
+    Step-back question:
+
+  hallucination_judge: |
+    You are a hallucination detector.
+    Given an answer and the context it was generated from, output JSON:
+      {"grounded": <bool>, "unsupported_claims": [<string>]}
+    Context: {context}
+    Answer: {answer}
+
+# ── Ablation variants ──────────────────────────────────────────────────────
+# Add new variants below to test different instruction styles or personas.
+
+chain_of_thought:
+  generator: |
+    You are a careful reasoning assistant.
+    Think step-by-step before giving your final answer.
+    Use ONLY the provided context. Cite sources by [doc_id].
+    Context:
+    {context}
+    Question: {question}
+    Reasoning:
+
+concise:
+  generator: |
+    Answer in one sentence using only the context below.
+    Context: {context}
+    Question: {question}
+    Answer:
