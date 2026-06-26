@@ -24,7 +24,7 @@ class DocumentChunk(BaseModel):
     id: str
     content: str
     score: float = Field(..., ge=0.0, le=1.0)
-    metadata: dict[str, Any] = Field(default_factory=dict)  # type: ignore[misc]
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class QueryResponse(BaseModel):
@@ -60,13 +60,13 @@ class QueryResponse(BaseModel):
 class IngestRequest(BaseModel):
     documents: list[str] = Field(..., min_length=1)
     collection: str = Field(default="default")
-    metadata: list[dict[str, Any]] = Field(default_factory=list)  # type: ignore[misc]
+    metadata: list[dict[str, Any]] = Field(default_factory=list)
 
     @field_validator("metadata", mode="after")
     @classmethod
     def metadata_length_matches_documents(
-        cls, metadata: list[dict[str, Any]], info: Any  # type: ignore[misc]
-    ) -> list[dict[str, Any]]:  # type: ignore[misc]
+        cls, metadata: list[dict[str, Any]], info: Any
+    ) -> list[dict[str, Any]]:
         documents: list[str] | None = (info.data or {}).get("documents")
         if documents and metadata and len(metadata) != len(documents):
             raise ValueError(
