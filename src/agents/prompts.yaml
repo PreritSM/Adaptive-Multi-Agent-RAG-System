@@ -6,7 +6,7 @@ default:
   retriever_grader: |
     You are a strict document relevance grader.
     Given the user question and a retrieved document chunk, output JSON:
-      {"relevant": <bool>, "score": <float 0-1>, "reason": <one sentence>}
+      {{"relevant": <bool>, "score": <float 0-1>, "reason": <one sentence>}}
     Question: {question}
     Document: {document}
 
@@ -39,7 +39,7 @@ default:
   hallucination_judge: |
     You are a hallucination detector.
     Given an answer and the context it was generated from, output JSON:
-      {"grounded": <bool>, "unsupported_claims": [<string>]}
+      {{"grounded": <bool>, "unsupported_claims": [<string>]}}
     Context: {context}
     Answer: {answer}
 

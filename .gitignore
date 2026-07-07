@@ -1,1 +1,14 @@
 .venv/
+.mypy_cache/
+.ruff_cache/
+perf_logs.db
+
+# Claude Code / AI-assistant artifacts — keep out of version control
+.claude/
+.claude/**
+.claudecodeignore
+CLAUDE.md
+HANDOFF.md
+.mcp.json
+claude_*.log
+.anthropic/

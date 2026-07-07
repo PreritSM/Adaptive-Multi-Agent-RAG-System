@@ -15,6 +15,7 @@ class AgentState(TypedDict):
     messages: Annotated[list[Any], add_messages]
 
     # Retrieval artefacts
+    k: int
     retrieved_docs: list[Document]
     retrieval_scores: list[float]
     retrieval_mode: str  # "dense" | "sparse" | "hybrid"
@@ -23,6 +24,8 @@ class AgentState(TypedDict):
     uncertainty_score: float
     uncertainty_threshold: float
     requires_fallback: bool
+    expand_attempts: int
+    generation_attempts: int
 
     # Generation artefacts
     answer: str
