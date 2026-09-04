@@ -35,3 +35,32 @@ class AgentState(TypedDict):
     prompt_tokens: int
     completion_tokens: int
     latency_ms: float
+
+
+def build_initial_state(
+    query: str,
+    query_id: str,
+    k: int,
+    retrieval_mode: str,
+    uncertainty_threshold: float,
+) -> AgentState:
+    """Build the zeroed-out initial state every graph run starts from."""
+    return AgentState(
+        query=query,
+        query_id=query_id,
+        messages=[],
+        k=k,
+        retrieved_docs=[],
+        retrieval_scores=[],
+        retrieval_mode=retrieval_mode,
+        uncertainty_score=0.0,
+        uncertainty_threshold=uncertainty_threshold,
+        requires_fallback=False,
+        expand_attempts=0,
+        generation_attempts=0,
+        answer="",
+        agent_trace=[],
+        prompt_tokens=0,
+        completion_tokens=0,
+        latency_ms=0.0,
+    )

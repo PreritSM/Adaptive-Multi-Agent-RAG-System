@@ -1,0 +1,3 @@
+{"question": "What retrieval strategies does the system support?", "ground_truth": "The system supports dense, sparse, and hybrid retrieval."}
+{"question": "How does the agent decide whether to expand the query?", "ground_truth": "It expands the query when the uncertainty score exceeds the configured threshold, up to a retry cap."}
+{"question": "How is a generated answer checked before being returned?", "ground_truth": "The answer is checked for hallucination against the retrieved context, and regenerated if it is not grounded, up to a retry cap."}

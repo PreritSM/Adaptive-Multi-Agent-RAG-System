@@ -15,7 +15,7 @@ Given a natural-language query, the system:
 5. **Checks the answer for hallucination** against the retrieved context before returning it, retrying generation if needed (also capped).
 6. Returns a fully-typed response with cited sources, per-source confidence scores, uncertainty score, token usage, latency, and an agent execution trace.
 
-Evaluation (RAGAS: faithfulness, answer relevancy, context precision/recall, across prompt-variant ablations) is planned via `/eval` but not yet implemented — see [Status](#status).
+Evaluation (RAGAS: faithfulness, answer relevancy, context precision/recall, across prompt-variant ablations) runs via `/eval` or the `python -m src.eval.evaluation` CLI — see [Status](#status).
 
 ---
 
@@ -24,7 +24,7 @@ Evaluation (RAGAS: faithfulness, answer relevancy, context precision/recall, acr
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    FastAPI (api/)                    │
-│  /health   /query   /ingest   /eval (not yet impl.)  │
+│         /health   /query   /ingest   /eval           │
 └────────────────────┬──────────────────────────────────┘
                      │ invokes compiled LangGraph
 ┌────────────────────▼────────────────────────────────┐
@@ -81,7 +81,7 @@ src/
     uncertainty.py        cosine_similarity, pairwise_cosine_matrix,
                           score_uncertainty, is_uncertain
   eval/
-    evaluation.py         RAGAS dataset construction + evaluation (not yet implemented)
+    evaluation.py         RAGAS dataset construction + evaluation, ablation CLI
 tests/
   test_schemas.py         Full test suite for all Pydantic schemas
 ```
@@ -219,9 +219,9 @@ Response (`QueryResponse`): answer text, cited `sources` (with per-chunk score/m
 
 Request (`IngestRequest`): `documents` (raw text list), `collection`, optional per-document `metadata`. Documents are chunked via `chunk_documents()` (metadata-aware, `RecursiveCharacterTextSplitter`), embedded, and upserted to Qdrant. Duplicate `chunk_id`s (a 16-char SHA-256 prefix) are skipped.
 
-### `POST /eval` *(not yet implemented)*
+### `POST /eval`
 
-Intended to run the RAGAS suite (faithfulness, answer relevancy, context precision/recall) over a named dataset for a given prompt variant, to support ablation studies across `prompts.yaml` variants.
+Request (`EvalRequest`): `dataset_name` (a `data/eval_datasets/{name}.jsonl` golden Q&A file), `prompt_variant`, `k`. Runs the real compiled agent graph over each golden question, then scores the results with the RAGAS suite (faithfulness, answer relevancy, context precision/recall) and returns an `EvalResponse`. The same pipeline is also exposed as `python -m src.eval.evaluation --dataset <name>`, which runs every `prompts.yaml` variant and ranks the results by faithfulness for ablation studies.
 
 ---
 
@@ -236,7 +236,7 @@ pytest
 grep -r "RetrievalQA\|load_qa_chain\|ConversationalRetrieval" . --include="*.py"   # must be empty
 ```
 
-Current test coverage: full Pydantic schema validation suite (`tests/test_schemas.py`). Retrieval-layer unit tests and graph integration tests are planned but not yet written (see [Status](#status)).
+Current test coverage: full Pydantic schema validation suite (`tests/test_schemas.py`) and the eval-pipeline plumbing (`tests/test_eval.py` — dataset loading, RAGAS dataset shaping, graph-driven sample generation via a fake LLM/retriever). Retrieval-layer unit tests, graph integration tests, and live RAGAS-metric assertions are planned but not yet written (see [Status](#status)).
 
 ---
 
@@ -250,10 +250,10 @@ This project is under active development. As of the last update:
 - `retrieval/uncertainty.py` — entropy + cosine-similarity uncertainty scoring
 - Full LangGraph agent: all six nodes implemented (retrieve, grade, assess uncertainty, expand query, generate, hallucination check), with dependency-injected LLM/retriever wiring and retry caps
 - `/health`, `/query`, `/ingest` working end-to-end (verified with fake LLM + fake retriever)
+- RAGAS evaluation pipeline (`eval/evaluation.py`) and `/eval` endpoint — golden-dataset loading, real graph-driven sample generation, and a prompt-variant ablation CLI (`python -m src.eval.evaluation`)
 
 **Remaining:**
-- RAGAS evaluation pipeline (`eval/evaluation.py`) and `/eval` endpoint
-- Retrieval-layer and graph integration test coverage
+- Retrieval-layer and graph integration test coverage (eval-pipeline plumbing has unit tests in `tests/test_eval.py`; deep RAGAS-metric assertions against a live LLM are still open)
 - Decide the ChromaDB question — it's wired in `docker-compose.yml` and `HealthResponse.chroma_reachable` but unused in code; either integrate it or remove it
 
 See `HANDOFF.md` for the original detailed execution plan and design rationale.

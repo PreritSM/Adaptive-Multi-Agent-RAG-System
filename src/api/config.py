@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     tavily_api_key: str = ""
 
     prompts_path: str = "src/agents/prompts.yaml"
+    eval_datasets_dir: str = "data/eval_datasets"
     default_prompt_variant: str = "default"
     default_uncertainty_threshold: float = 0.75
     max_expand_attempts: int = 2

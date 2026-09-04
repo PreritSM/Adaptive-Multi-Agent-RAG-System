@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import time
@@ -21,7 +22,7 @@ from sentence_transformers import SentenceTransformer
 from src.agents.dependencies import GraphDependencies, RetrieverFactory
 from src.agents.graph import compile_graph
 from src.agents.prompt_loader import load_prompts
-from src.agents.state import AgentState
+from src.agents.state import AgentState, build_initial_state
 from src.api.config import Settings, get_settings
 from src.api.schemas import (
     DocumentChunk,
@@ -33,6 +34,7 @@ from src.api.schemas import (
     QueryRequest,
     QueryResponse,
 )
+from src.eval.evaluation import generate_eval_samples, load_golden_dataset, run_ragas_evaluation
 from src.retrieval.core import EmbeddingFn, Retriever, build_retriever, chunk_documents
 
 # ---------------------------------------------------------------------------
@@ -83,13 +85,10 @@ def _make_retriever_factory(state: RuntimeState) -> RetrieverFactory:
 
 
 # ---------------------------------------------------------------------------
-# Lifespan — startup / shutdown
+# Collaborator wiring — shared by the app lifespan and the eval CLI
 # ---------------------------------------------------------------------------
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    settings = get_settings()
-
+def build_deps(settings: Settings) -> tuple[RuntimeState, GraphDependencies]:
     qdrant_client = AsyncQdrantClient(url=settings.qdrant_url)
     embedding_fn: EmbeddingFn = _SentenceTransformerEmbedding(
         SentenceTransformer(settings.embedding_model_name)
@@ -112,13 +111,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         max_expand_attempts=settings.max_expand_attempts,
         max_generation_attempts=settings.max_generation_attempts,
     )
+    return runtime, deps
+
+
+# ---------------------------------------------------------------------------
+# Lifespan — startup / shutdown
+# ---------------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings = get_settings()
+    runtime, deps = build_deps(settings)
 
     app.state.runtime = runtime
+    app.state.graph_dependencies = deps
     app.state.compiled_graph = compile_graph(deps)
 
     yield
 
-    await qdrant_client.close()
+    await runtime.qdrant_client.close()
 
 
 # ---------------------------------------------------------------------------
@@ -202,25 +213,13 @@ async def query(body: QueryRequest, request: Request) -> QueryResponse:
     query_id = str(uuid.uuid4())
     start = time.perf_counter()
 
-    initial_state: AgentState = {
-        "query": body.query,
-        "query_id": query_id,
-        "messages": [],
-        "k": body.k,
-        "retrieved_docs": [],
-        "retrieval_scores": [],
-        "retrieval_mode": body.retrieval_mode.value,
-        "uncertainty_score": 0.0,
-        "uncertainty_threshold": body.uncertainty_threshold,
-        "requires_fallback": False,
-        "expand_attempts": 0,
-        "generation_attempts": 0,
-        "answer": "",
-        "agent_trace": [],
-        "prompt_tokens": 0,
-        "completion_tokens": 0,
-        "latency_ms": 0.0,
-    }
+    initial_state: AgentState = build_initial_state(
+        query=body.query,
+        query_id=query_id,
+        k=body.k,
+        retrieval_mode=body.retrieval_mode.value,
+        uncertainty_threshold=body.uncertainty_threshold,
+    )
 
     result = cast(AgentState, await compiled_graph.ainvoke(initial_state))
     latency_ms = (time.perf_counter() - start) * 1000
@@ -284,6 +283,16 @@ async def ingest(body: IngestRequest, request: Request) -> IngestResponse:
 
 
 @app.post("/eval", response_model=EvalResponse, tags=["eval"])
-async def evaluate(body: EvalRequest) -> EvalResponse:
-    # TODO: run RAGAS evaluation pipeline
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Not implemented yet")
+async def evaluate(body: EvalRequest, request: Request) -> EvalResponse:
+    settings: Settings = request.app.state.runtime.settings
+    try:
+        golden = load_golden_dataset(body.dataset_name, settings.eval_datasets_dir)
+    except FileNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    base_deps: GraphDependencies = request.app.state.graph_dependencies
+    graph = compile_graph(dataclasses.replace(base_deps, prompt_variant=body.prompt_variant))
+    samples = await generate_eval_samples(golden, graph, body.k)
+    return await run_ragas_evaluation(
+        samples, base_deps.llm, base_deps.embedding_fn, body.prompt_variant
+    )

@@ -95,6 +95,18 @@ class EvalResponse(BaseModel):
     context_recall: float = Field(..., ge=0.0, le=1.0)
 
 
+class EvalGoldenSample(BaseModel):
+    question: str = Field(..., min_length=1)
+    ground_truth: str = Field(..., min_length=1)
+
+
+class EvalSample(BaseModel):
+    question: str
+    ground_truth: str
+    answer: str
+    contexts: list[str]
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str
