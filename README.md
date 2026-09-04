@@ -62,7 +62,7 @@ Evaluation (RAGAS: faithfulness, answer relevancy, context precision/recall, acr
 src/
   api/
     main.py          FastAPI app: lifespan/startup, structured JSON logging,
-                      CORS, /health, /query, /ingest, /eval (stub)
+                      CORS, /health, /query, /ingest, /eval
     config.py         pydantic-settings Settings (env / .env driven)
     schemas.py         All Pydantic request/response contracts
   agents/
@@ -84,6 +84,8 @@ src/
     evaluation.py         RAGAS dataset construction + evaluation, ablation CLI
 tests/
   test_schemas.py         Full test suite for all Pydantic schemas
+  test_eval.py             Eval-pipeline plumbing: dataset loading, RAGAS
+                             dataset shaping, graph-driven sample generation
 ```
 
 ### Module boundaries (enforced — see `CLAUDE.md`)
@@ -176,6 +178,7 @@ All settings are environment-driven via `src/api/config.py::Settings` (loaded fr
 | `DATABASE_URL` | `sqlite+aiosqlite:///./perf_logs.db` | Perf log persistence |
 | `TAVILY_API_KEY` | `""` | Web search tool fallback |
 | `PROMPTS_PATH` | `src/agents/prompts.yaml` | Prompt template file |
+| `EVAL_DATASETS_DIR` | `data/eval_datasets` | Directory of `{name}.jsonl` golden Q&A datasets for `/eval` |
 | `DEFAULT_PROMPT_VARIANT` | `default` | Prompt variant (`default`, `chain_of_thought`, `concise`) |
 | `DEFAULT_UNCERTAINTY_THRESHOLD` | `0.75` | Confidence gate for triggering query expansion |
 | `MAX_EXPAND_ATTEMPTS` | `2` | Retry cap for query expansion loop |
@@ -198,7 +201,7 @@ This starts the `api`, `qdrant`, and `chromadb` containers on a shared bridge ne
 | `GET` | `/health` | Liveness + Qdrant/Chroma reachability | ✅ Implemented |
 | `POST` | `/query` | Run a query through the full agent graph | ✅ Implemented |
 | `POST` | `/ingest` | Chunk, embed, and upsert documents into Qdrant | ✅ Implemented |
-| `POST` | `/eval` | Run RAGAS evaluation over a named dataset | 🚧 Returns `501 Not Implemented` |
+| `POST` | `/eval` | Run RAGAS evaluation over a named dataset | ✅ Implemented |
 
 ### `POST /query`
 
